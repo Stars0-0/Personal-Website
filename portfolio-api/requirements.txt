@@ -1,5 +1,6 @@
-# shortcut: lower bounds only, so this installs on Python 3.9 and on 3.13. Pin exact versions with `pip freeze` once you rely on it.
 fastapi>=0.115
-uvicorn[standard]>=0.30
+uvicorn>=0.30
 sqlmodel>=0.0.22
-psycopg[binary]>=3.2
+# Postgres driver for the Linux host (Render). Local runs use SQLite and don't need it.
+psycopg[binary]>=3.2; sys_platform == "linux"
+# shortcut: lower bounds only, so this installs on Python 3.9 and on 3.13. Pin exact versions with `pip freeze` once you rely on it.

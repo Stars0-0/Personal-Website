@@ -1,6 +1,6 @@
 # Portfolio API
 
-The backend for [my portfolio](https://stars0-0.github.io). The terminal on the site talks to this service, so visitors can type a note into a guestbook, send me a private message, and see a visit counter.
+The backend for [my portfolio site](https://stars0-0.github.io/Personal-Website/), which lives in the parent folder. The terminal on the site talks to this service, so visitors can type a note into a guestbook, send me a private message, and see a visit counter.
 
 **Stack:** FastAPI, SQLModel, SQLite locally, Postgres in production.
 
@@ -32,32 +32,38 @@ Interactive docs live at `/docs`.
 
 ## Run it locally
 
-Needs Python 3.9 or newer (`python3 --version`). On a Mac, plain `python` may not exist, so use `python3`.
+You need Python 3.9 or newer (`python3 --version`). Run these from this folder. On a Mac, plain `python` may not exist, so create the environment with `python3`. On Windows, use `py -m venv .venv` and activate with `.venv\Scripts\activate`.
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate   # Windows: py -m venv .venv, then .venv\Scripts\activate
-pip install --upgrade pip
-pip install -r requirements.txt pytest httpx
-ALLOWED_ORIGINS=http://localhost:8765 ADMIN_TOKEN=dev uvicorn main:app --reload
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt pytest httpx
+ALLOWED_ORIGINS=http://localhost:8765 ADMIN_TOKEN=dev python -m uvicorn main:app --reload
 ```
 
-Then open http://127.0.0.1:8000/docs. Without `DATABASE_URL` it uses a local SQLite file, `portfolio.db`.
+Then open http://127.0.0.1:8000/docs. Without `DATABASE_URL` it uses a local SQLite file, `portfolio.db`, which git ignores.
 
-Python 3.9 reached end of life on 2025-10-31, so prefer a newer Python if you can install one. Render uses 3.13 for this repo (see `.python-version`).
+The Postgres driver (`psycopg`) is only installed on Linux, where Render runs the service, so a Mac or Windows install stays small. To try Postgres locally, run `python -m pip install "psycopg[binary]"` and set `DATABASE_URL`.
+
+Python 3.9 reached end of life on 2025-10-31, so prefer a newer Python if you can install one.
 
 ## Tests
 
 ```bash
-pytest -q                                        # SQLite
-DATABASE_URL=postgresql://... pytest -q          # the same checks against Postgres
+python -m pytest -q
 ```
 
-The suite covers validation, moderation, admin auth, the rate limit, the counter and the CORS allow-list.
+That runs the suite against SQLite. To run the same checks against Postgres, install the driver as above and run `DATABASE_URL=postgresql://... python -m pytest -q`, using a database you don't mind filling with test rows. The suite covers validation, moderation, admin auth, the rate limit, the counter and the CORS allow-list.
 
 ## Deploy (Render + Neon, both free)
 
-1. **Database.** Create a free project on [Neon](https://neon.com) and copy its connection string. Neon's free plan is permanent. Render's own free Postgres expires after 30 days, and Render's free web services lose local files whenever they restart, which is why SQLite isn't used in production.
+This folder sits inside a larger repo, so Render needs to know where the service lives.
+
+1. **Database.** Create a free project on [Neon](https://neon.com). In the console click **Connect**, turn off the connection pooling toggle, and copy the connection string. Neon's free plan is permanent. Render's own free Postgres expires after 30 days, and Render's free web services lose local files whenever they restart, which is why SQLite isn't used in production.
 2. **Web service.** On [Render](https://render.com) choose New, then Web Service, and connect this repo.
+   - Root directory: `portfolio-api` (Render runs the commands below from inside it, and only redeploys when files in it change)
+   - Language: Python 3
    - Build command: `pip install -r requirements.txt`
    - Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
    - Instance type: Free
@@ -66,20 +72,11 @@ The suite covers validation, moderation, admin auth, the rate limit, the counter
    | Name | Value |
    |---|---|
    | `DATABASE_URL` | the Neon connection string |
-   | `ADMIN_TOKEN` | a long random string: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
-   | `ALLOWED_ORIGINS` | `https://stars0-0.github.io` (no trailing slash) |
+   | `ADMIN_TOKEN` | a long random string. Make one with `python3 -c "import secrets; print(secrets.token_urlsafe(32))"` |
+   | `ALLOWED_ORIGINS` | `https://stars0-0.github.io` (no trailing slash and no path) |
+   | `PYTHON_VERSION` | `3.13.5` |
 
+   `ALLOWED_ORIGINS` is the site's origin, which is only the scheme and host. The `/Personal-Website/` part of the page address is not included. `PYTHON_VERSION` takes priority over any `.python-version` file, so the service doesn't depend on where Render looks for that file.
 4. Open `https://<your-service>.onrender.com/docs` to check it. The free service sleeps after 15 minutes without traffic, and the first request afterwards takes about a minute.
-5. In the site's `index.html`, set `const API = 'https://<your-service>.onrender.com';` and publish the site again.
-
-## Moderating
-
-```bash
-export API=https://<your-service>.onrender.com
-export H="Authorization: Bearer <your ADMIN_TOKEN>"
-curl -H "$H" $API/api/admin/inbox                         # messages and pending notes
-curl -X POST -H "$H" $API/api/admin/guestbook/3/approve   # publish note 3
-curl -X DELETE -H "$H" $API/api/admin/guestbook/3         # remove note 3
-```
-
+5. In the site's `index.html`, set `const API = 'https://<your-service>.onrender.com';` and push the change.
 
