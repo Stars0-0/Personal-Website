@@ -1,0 +1,5 @@
+# shortcut: lower bounds only, so this installs on Python 3.9 and on 3.13. Pin exact versions with `pip freeze` once you rely on it.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlmodel>=0.0.22
+psycopg[binary]>=3.2
